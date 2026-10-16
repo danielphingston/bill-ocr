@@ -43,11 +43,11 @@ Hugging Face (the CDN allows cross-origin requests) and keeps them in the browse
 | Variant | Source | Size | Notes |
 |---|---|---|---|
 | fp32 (default) | Hugging Face | 1.08 GB | Downloads once per browser. |
-| 8-bit, optional | you host it | 450 MB | Built with `tools/quantize.py`. Output matched fp32 exactly on both test images, in Node and in the browser. The page lists it only if `models/falcon-ocr/falcon_ocr_kv_token_q8.onnx` is reachable next to the page. |
+| 8-bit, optional | [acid1burn/falcon_ocr_kv_token_q8.onnx](https://huggingface.co/acid1burn/falcon_ocr_kv_token_q8.onnx) | 450 MB | INT8 weight-only ONNX, built with `tools/quantize.py`. Output matched fp32 exactly on both test images, in Node and in the browser. |
 
 A 4-bit build (340 MB) is possible but not offered: it looped on Chinese text and dropped a quantity on the receipt.
 
-To build the 8-bit file (for example, to upload to your own Hugging Face repo and point `MODELS.q8.url` in `src/app.js` at it):
+To build the 8-bit file:
 
 ```bash
 tools/fetch-models.sh                       # downloads the fp32 export into models/ (gitignored)

@@ -1,12 +1,9 @@
 import { extractBill } from './extract.js';
 
-// Weights stream straight from Hugging Face (CORS-enabled) and are cached by the browser,
-// so nothing needs hosting. The 8-bit file is built with tools/quantize.py and uploaded to
-// your own HF repo; it is offered only when that URL answers.
-// Pinned to a commit so an upstream change can't swap the weights under the page.
+// Weights stream straight from Hugging Face (CORS-enabled) and are cached by the browser.
+// The source ONNX export is pinned to a commit; the INT8 variant is served from its HF repo.
 const HF = 'https://huggingface.co/ningpp/Falcon-OCR-ONNX/resolve/46f25593bc93c19003fbc6b9c968c137476be4c5/';
-// TODO: set to your repo, e.g. 'https://huggingface.co/<you>/Falcon-OCR-ONNX-Q8/resolve/main/'
-const HF_Q8 = 'https://huggingface.co/<you>/Falcon-OCR-ONNX-Q8/resolve/main/';
+const HF_Q8 = 'https://huggingface.co/acid1burn/falcon_ocr_kv_token_q8.onnx/resolve/main/';
 const MODELS = {
   fp32: { label: 'Full precision · 1.08 GB · Hugging Face', url: [HF + 'falcon_ocr_kv_token.onnx'] },
   q8: { label: '8-bit · 450 MB · Hugging Face', url: [HF_Q8 + 'falcon_ocr_kv_token_q8.onnx'], optional: true },
