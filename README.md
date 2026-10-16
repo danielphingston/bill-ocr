@@ -3,6 +3,10 @@
 Upload bills, receipts or invoices and get structured JSON back. Falcon-OCR runs in the browser
 with ONNX Runtime Web on WebGPU. No backend: images never leave the device.
 
+> **Experimental proof of concept:** This project is a prototype, and results are not reliable
+> across many real-world documents. OCR can omit or misread content, and extracted fields or line
+> items may be incomplete or incorrect. Review the raw OCR and verify all results manually.
+
 ## Run it
 
 ```bash
@@ -42,8 +46,8 @@ Hugging Face (the CDN allows cross-origin requests) and keeps them in the browse
 
 | Variant | Source | Size | Notes |
 |---|---|---|---|
-| fp32 (default) | Hugging Face | 1.08 GB | Downloads once per browser. |
-| 8-bit, optional | [acid1burn/falcon_ocr_kv_token_q8.onnx](https://huggingface.co/acid1burn/falcon_ocr_kv_token_q8.onnx) | 450 MB | INT8 weight-only ONNX, built with `tools/quantize.py`. Output matched fp32 exactly on both test images, in Node and in the browser. |
+| 8-bit (default when available) | [acid1burn/falcon_ocr_kv_token_q8.onnx](https://huggingface.co/acid1burn/falcon_ocr_kv_token_q8.onnx) | 450 MB | INT8 weight-only ONNX. Falls back to fp32 if the Q8 file is unavailable. |
+| fp32 | Hugging Face | 1.08 GB | Fallback model; downloads once per browser. |
 
 A 4-bit build (340 MB) is possible but not offered: it looped on Chinese text and dropped a quantity on the receipt.
 
@@ -84,12 +88,14 @@ npm run serve & node test/browser-e2e.mjs test/images/bill.png fp32 400
 
 ## Known limits
 
+- **Prototype reliability:** This is a proof of concept, not a production-ready document-processing system. Performance and accuracy vary by document; many layouts may not be read or structured correctly. Small text, dense tables, unusual formatting, and low-quality images are common failure cases.
 - **Resolution matters.** At 768px the synthetic receipt came back as hallucinated JSON
   (CORD-style `menu/nm/cnt` keys). At native resolution it was read word for word. The presets therefore
   stay at or near the reference settings (1536px / ~1M px). If the model does return JSON, it is
   parsed into `model_json`.
 - **Field extraction is heuristic.** It uses regexes and table parsing, not a language model, so
-  check totals before you rely on them. The `checks` block flags subtotals and line items that don't add up.
+  fields and line items may be missing or misclassified. Check all values, especially totals, before use.
+  The `checks` block flags some subtotals and line items that don't add up, but cannot catch every error.
   The next step up would be a small in-browser LLM (e.g. Qwen3-0.6B via transformers.js) that maps the OCR text to a JSON schema. That adds ~500 MB to the download.
 - The ONNX graph stores the KV cache after head expansion (16 heads), about 180 KB per token. Each decode step
   concatenates the cache, so decode gets slower as outputs get longer.
