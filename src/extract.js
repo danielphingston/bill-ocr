@@ -203,6 +203,25 @@ function itemsFromTables(tables) {
   return items;
 }
 
+// Some OCR table outputs keep only an outer <table> tag and flatten all rows
+// into one string. Recover serial-numbered rows from that representation.
+function itemsFromFlatTable(text) {
+  const flat = decodeEntities(text.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+  const header = /\bsl\.?\s*description\s*qty\s*rate\s*amount\b/i.exec(flat);
+  if (!header) return [];
+  const body = flat.slice(header.index + header[0].length).split(/\b(?:subtotal|payment\s+instructions)\b/i)[0]
+    .replace(/([a-z])(\d+(?:[.,]\d+)?)\s*(?=\$)/gi, '$1 $2 ')
+    .replace(/(\d+\.\d{2})(?=\d{1,3}\s+[a-z])/gi, '$1 ');
+  const row = /(?:^|\s)\d{1,3}\s+([a-z][\s\S]*?)\s+(\d+(?:[.,]\d+)?)\s*\$?\s*([\d,]+\.\d{2})\s*\$?\s*([\d,]+\.\d{2})(?=\s+\d{1,3}\s+[a-z]|\s*$)/gi;
+  const items = [];
+  for (const m of body.matchAll(row)) {
+    const description = m[1].trim();
+    if (!description || NON_ITEM.test(description)) continue;
+    items.push(clean({ description, quantity: parseAmount(m[2]), unit_price: parseAmount(m[3]), amount: parseAmount(m[4]) }));
+  }
+  return items;
+}
+
 function itemsFromModelJson(root) {
   const arrays = [];
   const listKey = /^(?:lineitems?|items?|menu|products?|details|entries|rows|orderlines)$/i;
@@ -315,6 +334,7 @@ export function extractBill(rawText) {
 
   let items = itemsFromModelJson(modelJson);
   if (!items.length) items = itemsFromTables(tables);
+  if (!items.length) items = itemsFromFlatTable(text);
   if (!items.length) items = itemsFromLines(lines);
   const itemsSum = items.reduce((s, i) => s + (i.amount || 0), 0);
 
