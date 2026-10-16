@@ -1,0 +1,4 @@
+node_modules/
+# Weights come from Hugging Face at runtime; local copies are for tests and the optional 8-bit build.
+models/
+test/screenshot.png

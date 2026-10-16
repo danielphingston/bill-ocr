@@ -1,0 +1,14 @@
+{
+  "name": "ocr-test",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test/run-node.mjs",
+    "serve": "npx --yes http-server@14.1.1 -c-1 -p 8080 ."
+  },
+  "devDependencies": {
+    "onnxruntime-node": "1.30.0",
+    "playwright": "1.55.0",
+    "pngjs": "7.0.0"
+  }
+}
