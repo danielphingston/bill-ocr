@@ -5,8 +5,8 @@ import { extractBill } from './extract.js';
 const HF = 'https://huggingface.co/ningpp/Falcon-OCR-ONNX/resolve/46f25593bc93c19003fbc6b9c968c137476be4c5/';
 const HF_Q8 = 'https://huggingface.co/acid1burn/falcon_ocr_kv_token_q8.onnx/resolve/main/';
 const MODELS = {
-  fp32: { label: 'Full precision · 1.08 GB · Hugging Face', url: [HF + 'falcon_ocr_kv_token.onnx'] },
   q8: { label: '8-bit · 450 MB · Hugging Face', url: [HF_Q8 + 'falcon_ocr_kv_token_q8.onnx'], optional: true },
+  fp32: { label: 'Full precision · 1.08 GB · Hugging Face', url: [HF + 'falcon_ocr_kv_token.onnx'] },
 };
 const TOKENIZER = [HF + 'tokenizer.json'];
 
@@ -336,12 +336,16 @@ for (const [key, m] of Object.entries(MODELS)) {
   const o = document.createElement('option');
   o.value = key;
   o.textContent = m.label;
+  if (key === 'q8') o.selected = true;
   $('#model').append(o);
   if (m.optional) {
     // Probe without downloading; drop the option when the file isn't hosted next to the page.
     fetch(new URL(m.url[0], document.baseURI), { method: 'HEAD' })
       .then((r) => { if (!r.ok) throw 0; })
-      .catch(() => o.remove());
+      .catch(() => {
+        o.remove();
+        if ($('#model').value === 'q8') $('#model').value = 'fp32';
+      });
   }
 }
 
