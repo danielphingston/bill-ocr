@@ -203,8 +203,43 @@ function itemsFromTables(tables) {
   return items;
 }
 
+function itemsFromModelJson(root) {
+  const arrays = [];
+  const listKey = /^(?:lineitems?|items?|menu|products?|details|entries|rows|orderlines)$/i;
+  const visit = (value, key = '') => {
+    if (Array.isArray(value)) {
+      if (listKey.test(key) || (!key && value.every((x) => x && typeof x === 'object' && !Array.isArray(x)))) arrays.push(value);
+      else for (const x of value) visit(x);
+    } else if (value && typeof value === 'object') {
+      for (const [k, v] of Object.entries(value)) visit(v, k.replace(/[^a-z]/gi, ''));
+    }
+  };
+  visit(root);
+
+  for (const rows of arrays) {
+    const items = rows.flatMap((row) => {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) return [];
+      const fields = Object.fromEntries(Object.entries(row).map(([k, v]) => [k.toLowerCase().replace(/[^a-z0-9]/g, ''), v]));
+      const get = (...keys) => keys.map((k) => fields[k]).find((v) => v !== undefined && v !== null && v !== '');
+      const rawDesc = get('description', 'itemname', 'productname', 'name', 'product', 'item', 'nm', 'desc', 'particular', 'particulars');
+      if (rawDesc === undefined || typeof rawDesc === 'object') return [];
+      const description = String(rawDesc).trim();
+      if (!/[a-z]{2,}/i.test(description)) return [];
+      const quantity = parseAmount(get('quantity', 'qty', 'count', 'cnt', 'units'));
+      let unit = parseAmount(get('unitprice', 'rate', 'priceperunit', 'each', 'unitcost'));
+      let amount = parseAmount(get('amount', 'linetotal', 'lineamount', 'total', 'sum', 'value', 'price'));
+      if (amount === null && unit !== null && quantity !== null) amount = Math.round(unit * quantity * 100) / 100;
+      if (unit === null && amount !== null && quantity !== null && quantity !== 0) unit = Math.round((amount / quantity) * 100) / 100;
+      return [clean({ description, quantity, unit_price: unit, amount })];
+    });
+    if (items.length) return items;
+  }
+  return [];
+}
+
 function itemsFromLines(lines) {
   const items = [];
+  const hasSerialColumn = lines.some((l) => /(?:^|\s)(?:sl\.?|s\.?\s*no\.?|serial\s*(?:no\.?|#)?|item\s*(?:no\.?|#))(?=.*\bdesc(?:ription)?\b)/i.test(l));
   for (const l of lines) {
     if (NON_ITEM.test(l) || /^[-=_*.\s]+$/.test(l)) continue;
     const amts = amountsIn(l).filter((a) => a.hasDecimals);
@@ -217,6 +252,7 @@ function itemsFromLines(lines) {
     let desc = head, qty = null, unit = null;
     if (m && m[2] && !/^\d{4,}$/.test(m[2])) { desc = m[1]; qty = parseAmount(m[2]); unit = m[3] ? parseAmount(m[3]) : null; }
     else if ((m = head.match(/^(\d+)\s*(?:x|×|@)\s*(.+)$/i))) { qty = +m[1]; desc = m[2]; }
+    if (hasSerialColumn) desc = desc.replace(/^\s*\d+[.)]?\s+(?=[a-z])/i, '');
     desc = desc.replace(/[|:]+$/, '').replace(/\s{2,}/g, ' ').trim();
     if (desc.length < 2) continue;
     items.push(clean({ description: desc, quantity: qty, unit_price: unit, amount: last.value }));
@@ -277,7 +313,8 @@ export function extractBill(rawText) {
       })
     : null;
 
-  let items = itemsFromTables(tables);
+  let items = itemsFromModelJson(modelJson);
+  if (!items.length) items = itemsFromTables(tables);
   if (!items.length) items = itemsFromLines(lines);
   const itemsSum = items.reduce((s, i) => s + (i.amount || 0), 0);
 
